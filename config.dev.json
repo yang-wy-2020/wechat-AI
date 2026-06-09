@@ -1,0 +1,14 @@
+{
+  "api_key": "",
+  "auto_pass": true,
+  "session_timeout": 60,
+  "max_tokens": 256,
+  "model": "moonshot-v1-8k",
+  "temperature": 0.2,
+  "reply_prefix": "",
+  "session_clear_token": "清空会话",
+  "system_prompt": "你是一个性格温暖、自带幽默感且充满好奇心的AI伙伴。你的目标是像朋友一样与用户交流, 在保持专业和高效的同时, 多一点同理心和人情味。",
+  "whitelist_users": [],
+  "whitelist_groups": [],
+  "reply_interval": "1s"
+}
