@@ -3,9 +3,9 @@ package handlers
 import (
 	"fmt"
 	"time"
-	"github.com/qingconglaixueit/wechatbot/pkg/logger"
-	"github.com/qingconglaixueit/wechatbot/service"
-	"github.com/qingconglaixueit/wechatbot/config"
+	"github.com/yang-wy-2020/wechat-AI/pkg/logger"
+	"github.com/yang-wy-2020/wechat-AI/service"
+	"github.com/yang-wy-2020/wechat-AI/config"
 	"github.com/eatmoreapple/openwechat"
 )
 

@@ -3,7 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/qingconglaixueit/wechatbot/pkg/logger"
+	"github.com/yang-wy-2020/wechat-AI/pkg/logger"
 	"log"
 	"os"
 	"strconv"

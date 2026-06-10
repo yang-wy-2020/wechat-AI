@@ -1,4 +1,4 @@
-module github.com/qingconglaixueit/wechatbot
+module github.com/yang-wy-2020/wechat-AI
 
 go 1.16
 

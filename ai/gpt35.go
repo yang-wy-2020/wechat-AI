@@ -7,7 +7,7 @@ import (
 	"context"
 	"github.com/otiai10/openaigo"
 	"github.com/qingconglaixueit/abing_logger"
-	"github.com/qingconglaixueit/wechatbot/config"
+	"github.com/yang-wy-2020/wechat-AI/config"
 )
 
 type MyGpt struct {

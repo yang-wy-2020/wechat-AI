@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 	"github.com/eatmoreapple/openwechat"
-	"github.com/qingconglaixueit/wechatbot/config"
-	"github.com/qingconglaixueit/wechatbot/ai"
-	"github.com/qingconglaixueit/wechatbot/pkg/logger"
-	"github.com/qingconglaixueit/wechatbot/service"
+	"github.com/yang-wy-2020/wechat-AI/config"
+	"github.com/yang-wy-2020/wechat-AI/ai"
+	"github.com/yang-wy-2020/wechat-AI/pkg/logger"
+	"github.com/yang-wy-2020/wechat-AI/service"
 	"strings"
 )
 
