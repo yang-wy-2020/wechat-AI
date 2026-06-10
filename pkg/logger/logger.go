@@ -33,8 +33,3 @@ func Warning(args ...interface{}) {
 	Logger.Println(args...)
 }
 
-// DeBug debug
-func DeBug(args ...interface{}) {
-	Logger.SetPrefix("[DeBug]")
-	Logger.Println(args...)
-}

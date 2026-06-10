@@ -1,166 +1,323 @@
-# wechatbot
+# wechat-AI
 
-> 本项目是 fork 他人的项目来进行学习和使用，请勿商用，可以下载下来做自定义的功能
-> 最近ChatGPT异常火爆，本项目可以将个人微信化身GPT机器人，
-> 项目基于[openwechat](https://github.com/eatmoreapple/openwechat) 开发。
+> 将个人微信化身 AI 机器人，支持多模型接入，基于 [openwechat](https://github.com/eatmoreapple/openwechat) 开发。
+> 本仓库 fork 自 [869413421/wechatbot](https://github.com/869413421/wechatbot)。
 
-> `友链：`[chatgpt-dingtalk](https://github.com/eryajf/chatgpt-dingtalk) 本项目可以将GPT机器人集成到钉钉群聊中。
+## 功能特性
 
+- **多模型接入** — 支持切换不同的 AI 供应商（Moonshot / OpenAI / Claude / 文心一言 / 通义千问）
+- **私聊自动回复** — 对白名单内好友的消息进行 AI 自动回复（支持上下文记忆）
+- **群聊 @ 回复** — 在群中被 @ 时自动回复，可限定只回复指定群
+- **上下文记忆** — 会话超时时间内（默认 60s）自动累积上下文
+- **清空会话口令** — 发送配置的令牌即可重置当前对话上下文
+- **好友自动通过** — 可选自动同意好友申请
+- **回复速率控制** — 可配置回复间隔（如 `1s`），避免触发风控
+- **多方式部署** — 二进制直接运行 / Docker / Supervisor 进程守护
 
-### 目前实现了以下功能
+## 前置条件
 
-* GPT机器人模型热度可配置
-* 提问增加上下文
-* 指令清空上下文（指令：根据配置）
-* 机器人群聊@回复
-* 机器人私聊回复
-* 私聊回复前缀设置
-* 好友添加自动通过可配置
-* ~~增加每天工作的起始时间和结束时间，只有在该时间段才会对外提供 chatgpt 服务~~
-* ~~增加 vip 用户在任意时段都可享受 chatgpt 服务，只需要在 \wechatbot\handlers\group_msg_handler.go 中 的 VipUserList 切片中，
-加入具体的 vip 昵称~~
+- Go 1.16+
+- AI 供应商的 API Key
+- 微信实名认证账号
 
-# 实现机制
-目前机器人有两种实现方式
-* 逆向功能，扒取官网API，通过抓取cookie获取GPT响应信息，`优点：`效果与官网一致，`缺点：`cookie会过期需要不定时更新。
-* 基于openai官网提供的API，`优点`：模型以及各种参数可以自由配置，`缺点：`效果达不到官网智能，且API收费，新账号有18美元免费额度。
+## 支持的 AI 供应商
 
-> 本项目基于第二种方式实现，模型之间具体差异可以参考[官方文档](https://beta.openai.com/docs/models/overview), 详细[参数示例](https://beta.openai.com/examples) 。
+| 供应商 | provider 值 | 默认模型 | 认证方式 | 备注 |
+|--------|-------------|----------|----------|------|
+| **Moonshot** (月之暗面) | `moonshot` | `moonshot-v1-8k` | `api_key` | 默认供应商 |
+| **OpenAI** | `openai` | `gpt-3.5-turbo` | `api_key` | 兼容 DeepSeek / Yi 等 |
+| **Anthropic Claude** | `claude` | `claude-3-5-sonnet-20241022` | `api_key` | 需配置 `x-api-key` |
+| **Baidu 文心一言** | `baidu` | `ernie-4.0-8k-latest` | `api_key` + `secret_key` | 千帆大模型平台 |
+| **Alibaba 通义千问** | `qwen` | `qwen-turbo` | `api_key` | DashScope API |
+| 其他 OpenAI 兼容 API | `openai` | 自定义 | `api_key` + `base_url` | DeepSeek / Yi / Groq 等 |
 
-# 常见问题
-* 如无法登录 login error: write storage.json: bad file descriptor 删除掉storage.json文件重新登录。
-* 如无法登录 login error: wechat network error: Get "https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage": 301 response missing Location header 一般是微信登录权限问题，先确保PC端能否正常登录。
-* 其他无法登录问题，依然尝试删除掉storage.json文件，结束进程(linux一般是kill -9 进程id)之后重启程序，重新扫码登录，(如为docket部署，Supervisord进程管理工具会自动重启程序)。
-* ~~机器人无法正常回复，检查ApiKey能否正常使用，控制台日志中有详细错误信息~~ 新版本会机器人会直接输出，因为被问得好烦了。
-* linux中二维码无法扫描，缩小命令行功能，让二维码像素尽可能清晰。（无法从代码层面解决）
-* 机器人一直答非所问，可能因为上下文累积过多。切换不同问题时，发送指令：启动时配置的`session_clear_token`字段。会清空上下文
+## 配置说明
 
-# 使用前提
+### 完整配置项
 
-> * ~~目前只支持在windows上运行因为需要弹窗扫码登录微信，后续会支持linux~~   已支持
-> * 有openai账号，并且创建好api_key，注册事项可以参考[此文章](https://juejin.cn/post/7173447848292253704) 。
-> * 应用可以参考这篇文章 [此文章](https://juejin.cn/post/7176813187705077816) 。
-> * 微信必须实名认证。
-
-# 注意事项
-
-> * 项目仅供娱乐，滥用可能有微信封禁的风险，请勿用于商业用途。
-> * 请注意收发敏感信息，本项目不做信息过滤。
-
-# 使用docker运行
-
-你可以使用docker快速运行本项目。
-
-`第一种：基于环境变量运行`
-
-```sh
-# 运行项目，环境变量参考下方配置说明
-$ docker run -itd --name wechatbot --restart=always \
- -e APIKEY=换成你的key \
- -e AUTO_PASS=false \
- -e SESSION_TIMEOUT=60s \
- -e MODEL=text-davinci-003 \
- -e MAX_TOKENS=512 \
- -e TEMPREATURE=0.9 \
- -e REPLY_PREFIX=我是来自机器人回复: \
- -e SESSION_CLEAR_TOKEN=下一个问题 \
- docker.mirrors.sjtug.sjtu.edu.cn/qingshui869413421/wechatbot:latest
-
-# 查看二维码
-$ docker exec -it wechatbot bash 
-$ tail -f -n 50 /app/run.log 
-```
-
-运行命令中映射的配置文件参考下边的配置文件说明。
-
-`第二种：基于配置文件挂载运行`
-
-```sh
-# 复制配置文件，根据自己实际情况，调整配置里的内容
-$ cp config.dev.json config.json  # 其中 config.dev.json 从项目的根目录获取
-
-# 运行项目
-$ docker run -itd --name wechatbot -v `pwd`/config.json:/app/config.json docker.mirrors.sjtug.sjtu.edu.cn/qingshui869413421/wechatbot:latest
-
-# 查看二维码
-$ docker exec -it wechatbot bash 
-$ tail -f -n 50 /app/run.log 
-```
-
-其中配置文件参考下边的配置文件说明。
-
-# 快速开始
-
-`第一种：直接下载二进制(适合对编程不了解的同学)`
-
-> 非技术人员请直接下载release中的[压缩包](https://github.com/869413421/wechatbot/releases) ，请根据自己系统以及架构选择合适的压缩包，下载之后直接解压运行。
-
-下载之后，在本地解压，即可看到可执行程序，与配置文件：
-
-```
-# windows
-1.下载压缩包解压
-2.复制文件中config.dev.json更改为config.json
-3.将config.json中的api_key替换为自己的
-4.双击exe，扫码登录
-
-# linux
-$ tar xf wechatbot-v0.0.2-darwin-arm64.tar.gz
-$ cd wechatbot-v0.0.2-darwin-arm64
-$ cp config.dev.json # 根据情况调整配置文件内容
-$ ./wechatbot  # 直接运行
-
-# 如果要守护在后台运行
-$ nohup ./wechatbot &> run.log &
-$ tail -f run.log
-```
-
-`第二种：基于源码运行(适合了解go语言编程的同学)`
-
-````
-# 获取项目
-$ git clone https://github.com/869413421/wechatbot.git
-
-# 进入项目目录
-$ cd wechatbot
-
-# 复制配置文件
-$ copy config.dev.json config.json
-
-# 启动项目
-$ go run main.go
-````
-
-# 配置文件说明
-
-````
+```json
 {
-  "api_key": "your api key",
+  "provider": "moonshot",
+  "api_key": "sk-xxxxxxxxxxxxxxxxxxxx",
+  "secret_key": "",
+  "base_url": "",
   "auto_pass": true,
   "session_timeout": 60,
-  "max_tokens": 1024,
-  "model": "text-davinci-003",
-  "temperature": 1,
-  "reply_prefix": "来自机器人回复：",
-  "session_clear_token": "清空会话"
+  "max_tokens": 256,
+  "model": "moonshot-v1-8k",
+  "temperature": 0.2,
+  "reply_prefix": "",
+  "session_clear_token": "清空会话",
+  "system_prompt": "你是一个性格温暖、自带幽默感且充满好奇心的AI伙伴。",
+  "whitelist_users": [],
+  "whitelist_groups": [],
+  "reply_interval": "1s"
 }
+```
 
-api_key：openai api_key
-auto_pass:是否自动通过好友添加
-session_timeout：会话超时时间，默认60秒，单位秒，在会话时间内所有发送给机器人的信息会作为上下文。
-max_tokens: GPT响应字符数，最大2048，默认值512。max_tokens会影响接口响应速度，字符越大响应越慢。
-model: GPT选用模型，默认text-davinci-003，具体选项参考官网训练场
-temperature: GPT热度，0到1，默认0.9。数字越大创造力越强，但更偏离训练事实，越低越接近训练事实
-reply_prefix: 私聊回复前缀
-session_clear_token: 会话清空口令，默认`下一个问题`
-````
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `provider` | string | `moonshot` | AI 供应商：`moonshot` / `openai` / `claude` / `baidu` / `qwen` |
+| `api_key` | string | — | API 密钥（必填，Baidu 模式下为 Client ID） |
+| `secret_key` | string | — | 附加密钥（仅 Baidu 模式需要，作为 Client Secret） |
+| `base_url` | string | — | OpenAI 兼容模式的 API 地址，末尾需带 `/v1/` |
+| `auto_pass` | bool | `false` | 是否自动通过好友申请 |
+| `session_timeout` | number | `60` | 会话上下文保留时间（秒） |
+| `max_tokens` | number | `512` | AI 回复最大 token 数 |
+| `model` | string | 各供应商默认 | 模型名称 |
+| `temperature` | float | `0.9` | 生成温度 (0~1) |
+| `reply_prefix` | string | `""` | 私聊回复前缀 |
+| `session_clear_token` | string | `"下一个问题"` | 清空上下文口令 |
+| `system_prompt` | string | `""` | 系统提示词，设定 AI 角色/风格 |
+| `whitelist_users` | array | `[]` | 私聊白名单昵称（空=不限制） |
+| `whitelist_groups` | array | `[]` | 群聊白名单名称（空=不限制） |
+| `reply_interval` | string | `"1s"` | 回复间隔，如 `"500ms"` `"2s"` |
 
-# 使用示例
-### 私聊
+### 环境变量
 
-<img width="300px" src="https://raw.githubusercontent.com/869413421/study/master/static/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20221208153022.jpg"/>
+环境变量优先级高于配置文件：
 
-### 群聊@回复
+| 变量 | 对应配置 |
+|------|----------|
+| `PROVIDER` | `provider` |
+| `APIKEY` | `api_key` |
+| `SECRET_KEY` | `secret_key` |
+| `BASE_URL` | `base_url` |
+| `AUTO_PASS` | `auto_pass` |
+| `SESSION_TIMEOUT` | `session_timeout` |
+| `MODEL` | `model` |
+| `MAX_TOKENS` | `max_tokens` |
+| `TEMPREATURE` | `temperature` |
+| `REPLY_PREFIX` | `reply_prefix` |
+| `SESSION_CLEAR_TOKEN` | `session_clear_token` |
+| `REPLY_INTERVAL` | `reply_interval` |
 
-<img width="300px" src="https://raw.githubusercontent.com/869413421/study/master/static/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20221208153015.jpg"/>
+## 供应商接入指南
 
+### 1. Moonshot（月之暗面）— 默认
+
+```json
+{
+  "provider": "moonshot",
+  "api_key": "sk-xxxxxxxxxxxxxxxxxxxx",
+  "model": "moonshot-v1-8k"
+}
+```
+
+- 注册：[Moonshot AI 开放平台](https://platform.moonshot.cn/)
+- 模型参考：`moonshot-v1-8k` / `moonshot-v1-32k` / `moonshot-v1-128k`
+
+### 2. OpenAI
+
+```json
+{
+  "provider": "openai",
+  "api_key": "sk-xxxxxxxxxxxxxxxxxxxx",
+  "model": "gpt-4o"
+}
+```
+
+### 3. DeepSeek（深度求索）
+
+DeepSeek 兼容 OpenAI 接口，使用 `openai` provider 并配置 `base_url`：
+
+```json
+{
+  "provider": "openai",
+  "api_key": "sk-xxxxxxxxxxxxxxxxxxxx",
+  "base_url": "https://api.deepseek.com/v1/",
+  "model": "deepseek-chat"
+}
+```
+
+### 4. 零一万物 Yi
+
+```json
+{
+  "provider": "openai",
+  "api_key": "sk-xxxxxxxxxxxxxxxxxxxx",
+  "base_url": "https://api.01.ai/v1/",
+  "model": "yi-large"
+}
+```
+
+### 5. Anthropic Claude
+
+```json
+{
+  "provider": "claude",
+  "api_key": "sk-ant-xxxxxxxxxxxxxxxxxxxx",
+  "model": "claude-3-5-sonnet-20241022"
+}
+```
+
+- `base_url` 可选，默认 `https://api.anthropic.com/v1/`
+- 支持覆盖 `system_prompt`
+
+### 6. Baidu 文心一言（千帆）
+
+```json
+{
+  "provider": "baidu",
+  "api_key": "你的 Client ID",
+  "secret_key": "你的 Client Secret",
+  "model": "ernie-4.0-8k-latest"
+}
+```
+
+- 注册：[百度千帆大模型平台](https://console.bce.baidu.com/qianfan/)
+- 自动获取 `access_token`，过期自动刷新
+- 可用模型：`ernie-4.0-8k-latest` / `ernie-3.5-8k-latest` / `ernie-speed-8k` 等
+
+### 7. Alibaba 通义千问（DashScope）
+
+```json
+{
+  "provider": "qwen",
+  "api_key": "sk-xxxxxxxxxxxxxxxxxxxx",
+  "model": "qwen-turbo"
+}
+```
+
+- 注册：[阿里云 DashScope](https://dashscope.aliyun.com/)
+- 可用模型：`qwen-turbo` / `qwen-plus` / `qwen-max` 等
+
+### 8. 其他 OpenAI 兼容 API
+
+任意兼容 `/v1/chat/completions` 格式的 API 均可使用 `openai` provider：
+
+```json
+{
+  "provider": "openai",
+  "api_key": "你的 API Key",
+  "base_url": "https://your-api-endpoint/v1/",
+  "model": "your-model-name"
+}
+```
+
+适用场景：Groq / Together AI / Perplexity / Local LLM (vLLM / Ollama) 等。
+
+## 快速开始
+
+```bash
+cp config.dev.json config.json
+# 编辑 config.json 填入 api_key 和 provider
+go run main.go
+```
+
+终端显示二维码后，使用微信扫码登录。
+
+后台运行：
+```bash
+go build -o wechatbot ./main.go
+nohup ./wechatbot &> run.log &
+tail -f run.log
+```
+
+## Docker 部署
+
+### 环境变量方式
+
+```bash
+docker run -itd --name wechatbot --restart=always \
+  -e PROVIDER=moonshot \
+  -e APIKEY=sk-xxxxxxxxxxxxxxxxxxxx \
+  -e MODEL=moonshot-v1-8k \
+  -e AUTO_PASS=true \
+  -e SESSION_TIMEOUT=60s \
+  -e MAX_TOKENS=256 \
+  -e TEMPREATURE=0.2 \
+  -e SYSTEM_PROMPT=你的prompt \
+  -e SESSION_CLEAR_TOKEN=清空会话 \
+  docker.mirrors.sjtug.sjtu.edu.cn/qingshui869413421/wechatbot:latest
+```
+
+### 配置文件挂载
+
+```bash
+docker run -itd --name wechatbot \
+  -v `pwd`/config.json:/app/config.json \
+  docker.mirrors.sjtug.sjtu.edu.cn/qingshui869413421/wechatbot:latest
+```
+
+查看二维码：
+```bash
+docker exec -it wechatbot bash
+tail -f -n 50 /app/run.log
+```
+
+## 项目结构
+
+```
+├── main.go                     # 入口
+├── bootstrap/bootstrap.go      # 启动流程
+├── config/config.go            # 配置加载
+├── pkg/
+│   └── llm/
+│       └── llm.go              # Provider 接口 + ChatMessage 类型
+├── ai/
+│   ├── ai.go                   # 供应商注册表 + Completions()
+│   ├── gpt35.go                # 旧版 GPT-3.5（未使用）
+│   ├── moonshot/
+│   │   └── provider.go         # 月之暗面 Moonshot
+│   ├── openai/
+│   │   └── provider.go         # OpenAI / DeepSeek / Yi 等兼容 API
+│   ├── claude/
+│   │   └── provider.go         # Anthropic Claude
+│   ├── baidu/
+│   │   └── provider.go         # 百度文心一言
+│   └── qwen/
+│       └── provider.go         # 阿里通义千问
+├── handlers/
+│   ├── handler.go              # 消息分发路由
+│   ├── user_msg_handler.go     # 私聊处理
+│   ├── group_msg_handler.go    # 群聊 @ 处理
+│   └── token_msg_handler.go    # 清空口令处理
+├── service/user.go             # 用户会话上下文服务
+├── pkg/logger/logger.go        # 日志工具
+├── Dockerfile
+├── Makefile
+├── supervisord.conf
+└── storage.json                # 微信登录缓存（自动生成）
+```
+
+## 扩展新供应商
+
+新增供应商只需三步：
+
+1. 在 `ai/` 下创建文件，实现 `Provider` 接口：
+
+```go
+type MyProvider struct{}
+
+func (p *MyProvider) Name() string { return "myprovider" }
+
+func (p *MyProvider) Chat(messages []ChatMessage) (string, error) {
+    // 调用 API 并返回回复文本
+}
+```
+
+2. 在 `ai/ai.go` 的 `providers` map 中注册：
+
+```go
+var providers = map[string]Provider{
+    "moonshot": &MoonshotProvider{},
+    // ...
+    "myprovider": &MyProvider{},
+}
+```
+
+3. 配置中使用 `"provider": "myprovider"` 即可，无需改动 handlers。
+
+## 常见问题
+
+- **`login error: write storage.json: bad file descriptor`** — 删除 `storage.json` 重新登录
+- **`301 response missing Location header`** — 检查 PC 微信能否正常登录
+- **二维码无法扫描** — 缩小终端窗口尺寸，让二维码像素更清晰
+- **机器人答非所问** — 发送 `session_clear_token` 配置的口令清空上下文
+
+## 注意事项
+
+- 仅供个人学习娱乐使用，滥用可能导致微信账号被限制
+- 本项目不做敏感信息过滤，请自行注意收发内容
+- 首次登录需扫码，`storage.json` 会保存会话以便后续热登录

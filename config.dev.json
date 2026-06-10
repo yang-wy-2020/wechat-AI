@@ -1,5 +1,8 @@
 {
+  "provider": "moonshot",
+  "base_url": "",
   "api_key": "",
+  "secret_key": "",
   "auto_pass": true,
   "session_timeout": 60,
   "max_tokens": 256,

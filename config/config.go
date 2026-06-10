@@ -13,8 +13,14 @@ import (
 
 // Configuration 项目配置
 type Configuration struct {
+	// AI 提供商：moonshot / openai / claude / baidu / qwen
+	Provider string `json:"provider"`
 	// gpt apikey
 	ApiKey string `json:"api_key"`
+	// 附加密钥（Baidu 使用：作为 SecretKey）
+	SecretKey string `json:"secret_key"`
+	// OpenAI 兼容 API 的基础地址（末尾需带 /v1/，例如 https://api.openai.com/v1/）
+	BaseURL string `json:"base_url"`
 	// 自动通过好友
 	AutoPass bool `json:"auto_pass"`
 	// 会话超时时间
@@ -78,6 +84,7 @@ func LoadConfig() *Configuration {
 	once.Do(func() {
 		// 给配置赋默认值
 		config = &Configuration{
+			Provider:          "moonshot",
 			AutoPass:          false,
 			SessionTimeout:    60,
 			MaxTokens:         512,
@@ -87,7 +94,7 @@ func LoadConfig() *Configuration {
 			SystemPrompt:      "",
 			WhitelistUsers:    []string{},
 			WhitelistGroups:   []string{},
-        		ReplyInterval:     Duration(time.Second),
+			ReplyInterval:     Duration(time.Second),
 		}
 
 		// 判断配置文件是否存在，存在直接JSON读取
@@ -115,7 +122,19 @@ func LoadConfig() *Configuration {
 		Temperature := os.Getenv("TEMPREATURE")
 		ReplyPrefix := os.Getenv("REPLY_PREFIX")
 		SessionClearToken := os.Getenv("SESSION_CLEAR_TOKEN")
+		ProviderEnv := os.Getenv("PROVIDER")
+		BaseURLEnv := os.Getenv("BASE_URL")
+		SecretKeyEnv := os.Getenv("SECRET_KEY")
 		ReplyIntervalEnv := os.Getenv("REPLY_INTERVAL")
+		if ProviderEnv != "" {
+			config.Provider = ProviderEnv
+		}
+		if BaseURLEnv != "" {
+			config.BaseURL = BaseURLEnv
+		}
+		if SecretKeyEnv != "" {
+			config.SecretKey = SecretKeyEnv
+		}
 		if ApiKey != "" {
 			config.ApiKey = ApiKey
 		}
