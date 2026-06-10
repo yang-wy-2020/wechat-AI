@@ -1,7 +1,6 @@
 # wechat-AI
 
 > 将个人微信化身 AI 机器人，支持多模型接入，基于 [openwechat](https://github.com/eatmoreapple/openwechat) 开发。
-> 本仓库 fork 自 [869413421/wechatbot](https://github.com/869413421/wechatbot)。
 
 ## 功能特性
 
@@ -13,6 +12,7 @@
 - **好友自动通过** — 可选自动同意好友申请
 - **回复速率控制** — 可配置回复间隔（如 `1s`），避免触发风控
 - **多方式部署** — 二进制直接运行 / Docker / Supervisor 进程守护
+- **消息去重** — 基于 MsgId 持久化去重，避免热登录离线消息重放
 
 ## 前置条件
 
@@ -257,7 +257,6 @@ tail -f -n 50 /app/run.log
 │       └── llm.go              # Provider 接口 + ChatMessage 类型
 ├── ai/
 │   ├── ai.go                   # 供应商注册表 + Completions()
-│   ├── gpt35.go                # 旧版 GPT-3.5（未使用）
 │   ├── moonshot/
 │   │   └── provider.go         # 月之暗面 Moonshot
 │   ├── openai/
@@ -278,7 +277,8 @@ tail -f -n 50 /app/run.log
 ├── Dockerfile
 ├── Makefile
 ├── supervisord.conf
-└── storage.json                # 微信登录缓存（自动生成）
+├── storage.json                # 微信登录缓存（自动生成）
+└── processed_msg_ids.json      # 已处理消息 ID 记录（自动生成）
 ```
 
 ## 扩展新供应商
@@ -311,7 +311,7 @@ var providers = map[string]Provider{
 
 ## 常见问题
 
-- **`login error: write storage.json: bad file descriptor`** — 删除 `storage.json` 重新登录
+- **`login error: write storage.json: bad file descriptor`** — 删除 `storage.json` 重新登录（如遇消息重放，删除 `processed_msg_ids.json` 即可重置去重记录）
 - **`301 response missing Location header`** — 检查 PC 微信能否正常登录
 - **二维码无法扫描** — 缩小终端窗口尺寸，让二维码像素更清晰
 - **机器人答非所问** — 发送 `session_clear_token` 配置的口令清空上下文
@@ -321,3 +321,4 @@ var providers = map[string]Provider{
 - 仅供个人学习娱乐使用，滥用可能导致微信账号被限制
 - 本项目不做敏感信息过滤，请自行注意收发内容
 - 首次登录需扫码，`storage.json` 会保存会话以便后续热登录
+- `processed_msg_ids.json` 记录已处理的 MsgId，重启热登录时自动跳过重放消息

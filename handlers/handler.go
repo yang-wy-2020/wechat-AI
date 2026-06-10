@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/yang-wy-2020/wechat-AI/config"
 	"github.com/yang-wy-2020/wechat-AI/pkg/logger"
@@ -8,12 +9,68 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/skip2/go-qrcode"
 	"log"
+	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
 var c = cache.New(config.LoadConfig().SessionTimeout, time.Minute*5)
+
+var (
+	processedMsgIDs   map[string]struct{}
+	processedMsgMu    sync.Mutex
+	processedMsgFile  = "processed_msg_ids.json"
+	processedMsgOnce  sync.Once
+)
+
+func initProcessedMsgIDs() {
+	processedMsgOnce.Do(func() {
+		processedMsgIDs = make(map[string]struct{})
+		data, err := os.ReadFile(processedMsgFile)
+		if err != nil {
+			return
+		}
+		var ids []string
+		if err := json.Unmarshal(data, &ids); err != nil {
+			return
+		}
+		for _, id := range ids {
+			processedMsgIDs[id] = struct{}{}
+		}
+		logger.Info(fmt.Sprintf("loaded %d processed message IDs", len(processedMsgIDs)))
+	})
+}
+
+func isMsgProcessed(id string) bool {
+	processedMsgMu.Lock()
+	defer processedMsgMu.Unlock()
+	_, ok := processedMsgIDs[id]
+	return ok
+}
+
+func markMsgProcessed(id string) {
+	processedMsgMu.Lock()
+	defer processedMsgMu.Unlock()
+	processedMsgIDs[id] = struct{}{}
+	if len(processedMsgIDs) > 1000 {
+		newIDs := make(map[string]struct{}, 500)
+		for k := range processedMsgIDs {
+			if len(newIDs) >= 500 {
+				break
+			}
+			newIDs[k] = struct{}{}
+		}
+		processedMsgIDs = newIDs
+	}
+	ids := make([]string, 0, len(processedMsgIDs))
+	for k := range processedMsgIDs {
+		ids = append(ids, k)
+	}
+	data, _ := json.Marshal(ids)
+	os.WriteFile(processedMsgFile, data, 0644)
+}
 
 // MessageHandlerInterface 消息处理接口
 type MessageHandlerInterface interface {
@@ -67,5 +124,18 @@ func NewHandler() (msgFunc func(msg *openwechat.Message), err error) {
 	dispatcher.RegisterHandler(func(message *openwechat.Message) bool {
 		return !(strings.Contains(message.Content, config.LoadConfig().SessionClearToken) || message.IsSendByGroup() || message.IsFriendAdd())
 	}, UserMessageContextHandler())
-	return openwechat.DispatchMessage(dispatcher), nil
+
+	dispatch := openwechat.DispatchMessage(dispatcher)
+
+	return func(msg *openwechat.Message) {
+		initProcessedMsgIDs()
+		if msg.MsgId != "" && isMsgProcessed(msg.MsgId) {
+			logger.Info(fmt.Sprintf("skip replayed message: %s", msg.MsgId))
+			return
+		}
+		if msg.MsgId != "" {
+			markMsgProcessed(msg.MsgId)
+		}
+		dispatch(msg)
+	}, nil
 }
